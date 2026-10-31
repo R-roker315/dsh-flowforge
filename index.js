@@ -295,7 +295,7 @@ export function apply(ctx, config = {}) {
       name: "flowforge_workflow_get",
       description:
         "Fetch a flowforge DIY workflow. Without workflowId, returns a list of saved workflows. Use before running to audit it.",
-      output: { schema: { type: "string" }, render: (_args, value) => String(value ?? "") },
+      output: { schema: { type: "string" }, render: (_args, value) => [{ type: "text", text: String(value ?? "") }] },
       parameters: {
         workflowId: {
           type: "string",
@@ -315,7 +315,7 @@ export function apply(ctx, config = {}) {
       name: "flowforge_run_start",
       description:
         "Start executing a saved workflow. Performs hard structural checks. Returns hardBlock=true → STOP and report; returns soft issues → list them and ask the user to confirm before re-calling with confirmedSoft=true.",
-      output: { schema: { type: "string" }, render: (_args, value) => String(value ?? "") },
+      output: { schema: { type: "string" }, render: (_args, value) => [{ type: "text", text: String(value ?? "") }] },
       parameters: {
         workflowId: {
           type: "string",
@@ -358,7 +358,7 @@ export function apply(ctx, config = {}) {
     defineTool({
       name: "flowforge_step_begin",
       description: "Begin the current step of the active run. Returns the step prompt to execute, or a pause/cancel notice.",
-      output: { schema: { type: "string" }, render: (_args, value) => String(value ?? "") },
+      output: { schema: { type: "string" }, render: (_args, value) => [{ type: "text", text: String(value ?? "") }] },
       parameters: {},
       async execute() {
         if (!run) return "没有活动运行。先 flowforge_run_start。";
@@ -389,7 +389,7 @@ export function apply(ctx, config = {}) {
       name: "flowforge_step_finish",
       description:
         "Report the real outcome of the current step. status: done|failed. summary: 1-2 句事实。若认为需要非预设跳转，给 proposeJumpTo（0 基序号）并等待用户裁决。",
-      output: { schema: { type: "string" }, render: (_args, value) => String(value ?? "") },
+      output: { schema: { type: "string" }, render: (_args, value) => [{ type: "text", text: String(value ?? "") }] },
       parameters: {
         status: {
           type: "string",
@@ -452,7 +452,7 @@ export function apply(ctx, config = {}) {
     defineTool({
       name: "flowforge_run_control",
       description: "Control the active run. actions: pause|resume|cancel|approve-jump|reject-jump.",
-      output: { schema: { type: "string" }, render: (_args, value) => String(value ?? "") },
+      output: { schema: { type: "string" }, render: (_args, value) => [{ type: "text", text: String(value ?? "") }] },
       parameters: {
         action: {
           type: "string",
@@ -477,7 +477,7 @@ export function apply(ctx, config = {}) {
     defineTool({
       name: "flowforge_run_state",
       description: "Snapshot of the active run: per-step status, current index, pending decisions.",
-      output: { schema: { type: "string" }, render: (_args, value) => String(value ?? "") },
+      output: { schema: { type: "string" }, render: (_args, value) => [{ type: "text", text: String(value ?? "") }] },
       parameters: {},
       async execute() {
         return JSON.stringify(runSnapshot() ?? { active: false }, null, 2);

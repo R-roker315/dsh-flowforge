@@ -54,6 +54,9 @@ window.__ModuleLoader__.load({
 .ff-sug{position:absolute;top:calc(100% + 4px);left:0;right:56px;background:var(--dsw-specific-input-major,#fff);
   border:1px solid var(--dsw-alias-border-l2-darkmode-thin,rgba(0,0,0,.15));border-radius:8px;box-shadow:var(--dsw-shadow-lv2,0 4px 16px rgba(0,0,0,.12));
   max-height:220px;overflow:auto;z-index:20}
+.ff-sug-inline{border:1px solid var(--dsw-alias-border-l2-darkmode-thin,rgba(0,0,0,.15));border-radius:8px;max-height:180px;overflow:auto;font-size:12px}
+.ff-sug-inline .ff-sug-item{padding:5px 10px}
+.ff-sug-label{font-size:11px;color:var(--dsw-alias-label-tertiary,#999);padding:4px 10px 0}
 .ff-sug-item{padding:6px 10px;font-size:12px;cursor:pointer;display:flex;gap:6px;align-items:center}
 .ff-sug-item:hover,.ff-sug-item[data-sel="1"]{background:var(--dsw-alias-state-business-primary-light,rgba(37,99,235,.08))}
 .ff-sug-tag{font-size:10px;color:var(--dsw-alias-label-tertiary,#999);border:1px solid currentColor;border-radius:4px;padding:0 3px}
@@ -377,17 +380,18 @@ window.__ModuleLoader__.load({
                 onKeyDown: onQueryKey,
               }),
               react_jsx_runtime.jsx("button", { className: "ff-btn primary", onClick: () => addStep(query), children: "添加" }),
-              sugs.length > 0 && react_jsx_runtime.jsx("div", { className: "ff-sug", children:
-                sugs.map((s, i) => react_jsx_runtime.jsxs("div", {
-                  className: "ff-sug-item", "data-sel": i === sugSel ? "1" : "0",
-                  onMouseDown: (e) => { e.preventDefault(); addStep(s.text); },
-                  onMouseEnter: () => setSugSel(i),
-                  children: [
-                    react_jsx_runtime.jsx("span", { children: s.text }),
-                    react_jsx_runtime.jsx("span", { className: "ff-sug-tag", children: s.source === "history" ? "历史" : "词库" }),
-                  ],
-                }, `${s.text}-${i}`))
-              }),
+            ] }),
+            sugs.length > 0 && react_jsx_runtime.jsxs("div", { className: "ff-sug-inline", children: [
+              react_jsx_runtime.jsx("div", { className: "ff-sug-label", children: "联想候选（↑↓ 选择，回车/Tab 采纳）：" }),
+              sugs.map((s, i) => react_jsx_runtime.jsxs("div", {
+                className: "ff-sug-item", "data-sel": i === sugSel ? "1" : "0",
+                onMouseDown: (e) => { e.preventDefault(); addStep(s.text); },
+                onMouseEnter: () => setSugSel(i),
+                children: [
+                  react_jsx_runtime.jsx("span", { children: s.text }),
+                  react_jsx_runtime.jsx("span", { className: "ff-sug-tag", children: s.source === "history" ? "历史" : "词库" }),
+                ],
+              }, `${s.text}-${i}`)),
             ] }),
 
             steps.length === 0 && react_jsx_runtime.jsx("div", { className: "ff-status", children: "还没有步骤。逐条输入提示词，构建你的专属工作流。" }),

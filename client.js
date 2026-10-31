@@ -124,7 +124,7 @@ window.__ModuleLoader__.load({
     }
 
     // ------------------------------------------------------------ panel
-    function FlowforgePanel({ client, remote, sessionId, open, onToggle, diagnostics, getRemoteSession }) {
+    function FlowforgePanel({ client, sessionId, open, onToggle, diagnostics, getRemoteSession }) {
       const [tab, setTab] = react.useState("forge"); // forge | library | run
       const [name, setName] = react.useState("");
       const [steps, setSteps] = react.useState([]);
@@ -302,9 +302,10 @@ window.__ModuleLoader__.load({
         });
       const resolveSessionId = async () => {
         if (sessionId) return sessionId;
-        if (!remote?.session?.list) return null;
+        const session = getRemoteSession?.() ?? null;
+        if (!session?.list) return null;
         try {
-          const res = await remote.session.list({});
+          const res = await session.list({});
           const items =
             res?.value?.items ?? res?.items ?? (Array.isArray(res) ? res : []);
           const arr = Array.isArray(items) ? items : [];
@@ -612,7 +613,7 @@ window.__ModuleLoader__.load({
           children: [
             react_jsx_runtime.jsx(Dock),
             panelOpen && react_jsx_runtime.jsx(FlowforgePanel, {
-              client, remote, sessionId: props.sessionId, open: panelOpen, diagnostics, getRemoteSession,
+              client, sessionId: props.sessionId, open: panelOpen, diagnostics, getRemoteSession,
               onToggle: () => setOpen(false),
             }),
           ],
@@ -691,7 +692,7 @@ window.__ModuleLoader__.load({
             }
             root.render(
               react_jsx_runtime.jsx(FlowforgePanel, {
-                client, remote, sessionId: null, open: true, diagnostics, getRemoteSession,
+                client, sessionId: null, open: true, diagnostics, getRemoteSession,
                 onToggle: () => { domOpen = false; renderDomPanel(); },
               }),
             );

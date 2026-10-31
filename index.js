@@ -295,9 +295,12 @@ export function apply(ctx, config = {}) {
       name: "flowforge_workflow_get",
       description:
         "Fetch a flowforge DIY workflow. Without workflowId, returns a list of saved workflows. Use before running to audit it.",
-      parameters: Schema.object({
-        workflowId: Schema.string().description("工作流 ID。留空则列出全部。").optional(),
-      }),
+      parameters: {
+        workflowId: {
+          type: "string",
+          description: "工作流 ID。留空则列出全部。",
+        },
+      },
       async execute(args) {
         if (args?.workflowId) {
           const wf = await readWorkflow(args.workflowId);
@@ -311,12 +314,17 @@ export function apply(ctx, config = {}) {
       name: "flowforge_run_start",
       description:
         "Start executing a saved workflow. Performs hard structural checks. Returns hardBlock=true → STOP and report; returns soft issues → list them and ask the user to confirm before re-calling with confirmedSoft=true.",
-      parameters: Schema.object({
-        workflowId: Schema.string().required(),
-        confirmedSoft: Schema.boolean()
-          .default(false)
-          .description("用户已知晓软警告并同意继续时置 true。"),
-      }),
+      parameters: {
+        workflowId: {
+          type: "string",
+          required: true,
+          description: "要启动的工作流 ID。",
+        },
+        confirmedSoft: {
+          type: "boolean",
+          description: "用户已知晓软警告并同意继续时置 true。",
+        },
+      },
       async execute(args) {
         const wf = await readWorkflow(args.workflowId);
         if (!wf) return `找不到工作流 ${args.workflowId}。先用 flowforge_workflow_get 核对 ID。`;
@@ -348,7 +356,7 @@ export function apply(ctx, config = {}) {
     defineTool({
       name: "flowforge_step_begin",
       description: "Begin the current step of the active run. Returns the step prompt to execute, or a pause/cancel notice.",
-      parameters: Schema.object({}),
+      parameters: {},
       async execute() {
         if (!run) return "没有活动运行。先 flowforge_run_start。";
         if (run.status === "cancelled") return "运行已被用户终止。停止执行，做收尾汇报。";
@@ -378,11 +386,22 @@ export function apply(ctx, config = {}) {
       name: "flowforge_step_finish",
       description:
         "Report the real outcome of the current step. status: done|failed. summary: 1-2 句事实。若认为需要非预设跳转，给 proposeJumpTo（0 基序号）并等待用户裁决。",
-      parameters: Schema.object({
-        status: Schema.union(["done", "failed"]).required(),
-        summary: Schema.string().required(),
-        proposeJumpTo: Schema.number().optional().description("提议跳转到的步骤序号（0 基）。仅在确有必要时提供。"),
-      }),
+      parameters: {
+        status: {
+          type: "string",
+          required: true,
+          description: '步骤真实结果："done" 或 "failed"。',
+        },
+        summary: {
+          type: "string",
+          required: true,
+          description: "1-2 句事实性摘要。",
+        },
+        proposeJumpTo: {
+          type: "number",
+          description: "提议跳转到的步骤序号（0 基）。仅在确有必要时提供。",
+        },
+      },
       async execute(args) {
         if (!run) return "没有活动运行。";
         const i = run.currentIndex;
@@ -429,9 +448,13 @@ export function apply(ctx, config = {}) {
     defineTool({
       name: "flowforge_run_control",
       description: "Control the active run. actions: pause|resume|cancel|approve-jump|reject-jump.",
-      parameters: Schema.object({
-        action: Schema.union(["pause", "resume", "cancel", "approve-jump", "reject-jump"]).required(),
-      }),
+      parameters: {
+        action: {
+          type: "string",
+          required: true,
+          description: "操作：pause | resume | cancel | approve-jump | reject-jump。",
+        },
+      },
       async execute(args) {
         const r = await control(args.action);
         if (r.error) return `失败：${r.error}`;
@@ -449,7 +472,7 @@ export function apply(ctx, config = {}) {
     defineTool({
       name: "flowforge_run_state",
       description: "Snapshot of the active run: per-step status, current index, pending decisions.",
-      parameters: Schema.object({}),
+      parameters: {},
       async execute() {
         return JSON.stringify(runSnapshot() ?? { active: false }, null, 2);
       },

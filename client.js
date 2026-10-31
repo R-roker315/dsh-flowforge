@@ -296,6 +296,24 @@ window.__ModuleLoader__.load({
           setIssues(data.issues ?? []);
           if ((data.issues ?? []).length === 0) setError("");
         });
+      const resolveSessionId = async () => {
+        if (sessionId) return sessionId;
+        if (!remote?.session?.list) return null;
+        try {
+          const res = await remote.session.list({});
+          const items =
+            res?.value?.items ?? res?.items ?? (Array.isArray(res) ? res : []);
+          const arr = Array.isArray(items) ? items : [];
+          const sorted = [...arr].sort(
+            (a, b) => (b.updatedAt ?? b.updated_at ?? 0) - (a.updatedAt ?? a.updated_at ?? 0),
+          );
+          const sid = sorted[0]?.sessionId ?? sorted[0]?.id ?? null;
+          if (sid) return sid;
+        } catch (e) {
+          setError(`自动定位会话失败：${String(e.message ?? e)}`);
+        }
+        return null;
+      };
       const start = () =>
         guard(async () => {
           if (!currentId) {
@@ -303,8 +321,10 @@ window.__ModuleLoader__.load({
             setCurrentId(data.workflow.id);
           }
           if (!remote?.session?.prompt) throw new Error("未获得 remote 通道，无法驱动主对话。");
+          const sid = await resolveSessionId();
+          if (!sid) throw new Error("未定位到会话：请先在主界面打开/新建一个会话，再点执行。");
           const res = await remote.session.prompt({
-            sessionId,
+            sessionId: sid,
             mode: "steer",
             content: [{ type: "text", text: buildKickoff({ ...buildWorkflow(), id: currentId }) }],
           });
@@ -318,11 +338,14 @@ window.__ModuleLoader__.load({
           await client.call("run/control", { action });
           await refreshState();
           if (promptAfter && remote?.session?.prompt) {
-            await remote.session.prompt({
-              sessionId,
-              mode: "steer",
-              content: [{ type: "text", text: promptAfter }],
-            });
+            const sid = await resolveSessionId();
+            if (sid) {
+              await remote.session.prompt({
+                sessionId: sid,
+                mode: "steer",
+                content: [{ type: "text", text: promptAfter }],
+              });
+            }
           }
         });
 

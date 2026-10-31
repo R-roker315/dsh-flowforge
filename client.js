@@ -592,7 +592,7 @@ window.__ModuleLoader__.load({
         btn.textContent = "⚒ 锻造";
         btn.title = "流程锻造（DOM 直挂模式）";
         btn.style.cssText = [
-          "position:fixed", "top:64px", "right:14px", "z-index:2147483000",
+          "position:fixed", "top:64px", "right:72px", "z-index:2147483000",
           "padding:4px 12px", "border-radius:999px", "font-size:12px", "font-family:inherit",
           "border:1px solid rgba(120,120,120,.45)", "background:rgba(255,255,255,.85)",
           "color:#333", "cursor:pointer", "box-shadow:0 2px 8px rgba(0,0,0,.15)",

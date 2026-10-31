@@ -322,16 +322,32 @@ window.__ModuleLoader__.load({
       const sendPrompt = async (sid, text) => {
         const session = getRemoteSession?.() ?? remote?.session ?? null;
         if (!session?.prompt) throw new Error("未获得 remote.session 通道（面板打开后仍不可用）。");
-        // steer（插入进行中的回合）优先，被拒则退回普通入队
+        // wire schema（SessionPromptRequest）：requestId/sessionId/mode/content 均必填，clientTimeZone 可选
+        const requestId = () =>
+          (globalThis.crypto?.randomUUID?.() ?? `ff-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+        const base = () => ({
+          requestId: requestId(),
+          sessionId: sid,
+          content: [{ type: "text", text }],
+          clientTimeZone: Intl.DateTimeFormat().resolvedOptions?.().timeZone || undefined,
+        });
+        // steer（插入进行中的回合）优先；仅会话空闲等 steer 不可用场景退回 queue
+        let steerErr = null;
         try {
-          const res = await session.prompt({ sessionId: sid, mode: "steer", content: [{ type: "text", text }] });
+          const res = await session.prompt({ ...base(), mode: "steer" });
           if (res && res.ok === false) throw new Error(res.error?.message ?? "发送失败");
           return;
         } catch (e) {
-          if (!/steer/i.test(String(e?.message ?? e))) throw e;
+          const msg = String(e?.message ?? e);
+          if (/steer/i.test(msg)) steerErr = e;
+          else throw e;
         }
-        const res2 = await session.prompt({ sessionId: sid, content: [{ type: "text", text }] });
-        if (res2 && res2.ok === false) throw new Error(res2.error?.message ?? "发送失败");
+        try {
+          const res2 = await session.prompt({ ...base(), mode: "queue" });
+          if (res2 && res2.ok === false) throw new Error(res2.error?.message ?? "发送失败");
+        } catch (e2) {
+          throw steerErr ?? e2;
+        }
       };
       const start = () =>
         guard(async () => {

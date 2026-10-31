@@ -549,19 +549,39 @@ window.__ModuleLoader__.load({
         "conversation.composer.dock",
         "conversation.hero.dock",
         "conversation.input.accessory",
+        "conversation.hero.modeActions",
       ];
+      const makeKeyed = (slotName) => ({
+        name: slotName,
+        id: PLUGIN_ID,
+        order: 30,
+        inject: (arg) => ({ sessionId: typeof arg === "string" ? arg : arg?.sessionId }),
+      });
+      const makeList = (slotName) => ({
+        name: slotName,
+        id: PLUGIN_ID,
+        order: 30,
+      });
       for (const slotName of SLOT_NAMES) {
-        ctx.slots.inject(slotName, () =>
-          ctx.slots.register(
-            {
-              name: slotName,
-              id: PLUGIN_ID,
-              order: 30,
-              inject: (sessionId) => ({ sessionId }),
-            },
-            DockWithPanel,
-          ),
-        );
+        try {
+          ctx.slots.inject(slotName, () => {
+            let spec = null;
+            try {
+              spec = typeof ctx.slots.spec === "function" ? ctx.slots.spec(slotName) : null;
+            } catch (error) {
+              console.warn("[dsh-flowforge] spec() threw:", slotName, error?.message ?? error);
+            }
+            console.warn("[dsh-flowforge] slot spec:", slotName, JSON.stringify(spec ?? null));
+            if (spec && spec.kind === "list") {
+              return ctx.slots.register(makeList(slotName), () =>
+                react_jsx_runtime.jsx(DockWithPanel, {}),
+              );
+            }
+            return ctx.slots.register(makeKeyed(slotName), DockWithPanel);
+          });
+        } catch (error) {
+          console.warn("[dsh-flowforge] slots.inject failed:", slotName, error?.message ?? error);
+        }
       }
     }
 

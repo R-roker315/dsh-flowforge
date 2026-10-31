@@ -124,7 +124,7 @@ window.__ModuleLoader__.load({
     }
 
     // ------------------------------------------------------------ panel
-    function FlowforgePanel({ client, remote, sessionId, open, onToggle }) {
+    function FlowforgePanel({ client, remote, sessionId, open, onToggle, diagnostics }) {
       const [tab, setTab] = react.useState("forge"); // forge | library | run
       const [name, setName] = react.useState("");
       const [steps, setSteps] = react.useState([]);
@@ -138,6 +138,7 @@ window.__ModuleLoader__.load({
       const [sugSel, setSugSel] = react.useState(0);
       const [dragIndex, setDragIndex] = react.useState(null);
       const [busy, setBusy] = react.useState(false);
+      const [diagText, setDiagText] = react.useState("");
 
       const refreshState = react.useCallback(async () => {
         try {
@@ -495,6 +496,7 @@ window.__ModuleLoader__.load({
           ] }),
           issues && issues.length === 0 && react_jsx_runtime.jsx("div", { className: "ff-status", children: "✓ 自检通过：无结构性问题（AI 深度审查在执行前进行）。" }),
           error && react_jsx_runtime.jsx("div", { className: "ff-err", children: error }),
+          diagText && react_jsx_runtime.jsx("pre", { className: "ff-issues", style: { maxHeight: 220, fontSize: 11, whiteSpace: "pre-wrap" }, children: diagText }),
 
           react_jsx_runtime.jsxs("div", { className: "ff-foot", children: [
             react_jsx_runtime.jsx("input", {
@@ -510,6 +512,7 @@ window.__ModuleLoader__.load({
               react_jsx_runtime.jsx("input", { type: "file", accept: ".json,application/json", style: { display: "none" }, onChange: doImport }),
             ] }),
             steps.length > 0 && react_jsx_runtime.jsx("button", { className: "ff-btn danger", onClick: () => { setSteps([]); setIssues(null); }, children: "清空" }),
+            react_jsx_runtime.jsx("button", { className: "ff-btn", onClick: () => setDiagText(diagnostics ? diagnostics() : "no diagnostics fn"), children: "诊断" }),
           ] }),
         ],
       });
@@ -537,6 +540,31 @@ window.__ModuleLoader__.load({
         (typeof ctx.remote === "object" ? ctx.remote?.session : undefined) ??
         null;
       const remote = remoteSession ? { session: remoteSession } : null;
+      // 诊断：一次性探明客户端可用的全部通道形态
+      const diagnostics = () => {
+        const out = {};
+        const probe = (name, fn) => {
+          try {
+            const v = fn();
+            out[name] =
+              v === undefined ? "undefined"
+              : v === null ? "null"
+              : typeof v === "object" ? `object keys=[${Object.keys(v).slice(0, 25).join(",")}]`
+              : `${typeof v}:${String(v).slice(0, 60)}`;
+          } catch (e) {
+            out[name] = `ERR: ${e?.message ?? e}`;
+          }
+        };
+        probe("ctx.get(remote)", () => resolveRemote("remote"));
+        probe("ctx.get(remote.session)", () => resolveRemote("remote.session"));
+        probe("ctx.get(remote.commands)", () => resolveRemote("remote.commands"));
+        probe("ctx.get(connection)", () => ctx.get?.("connection"));
+        probe("ctx.remote", () => ctx.remote);
+        probe("ctx.remote?.session", () => ctx.remote?.session);
+        probe("connection.rpc", () => connection?.rpc);
+        out.hasDshBoot = Boolean(window.__DSH_BOOT__);
+        return JSON.stringify(out, null, 1);
+      };
       const client = createFlowforgeClient(
         connection?.rpc ?? {
           async call() {
@@ -578,7 +606,7 @@ window.__ModuleLoader__.load({
           children: [
             react_jsx_runtime.jsx(Dock),
             panelOpen && react_jsx_runtime.jsx(FlowforgePanel, {
-              client, remote, sessionId: props.sessionId, open: panelOpen,
+              client, remote, sessionId: props.sessionId, open: panelOpen, diagnostics,
               onToggle: () => setOpen(false),
             }),
           ],
@@ -657,7 +685,7 @@ window.__ModuleLoader__.load({
             }
             root.render(
               react_jsx_runtime.jsx(FlowforgePanel, {
-                client, remote, sessionId: null, open: true,
+                client, remote, sessionId: null, open: true, diagnostics,
                 onToggle: () => { domOpen = false; renderDomPanel(); },
               }),
             );

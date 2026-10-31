@@ -490,9 +490,20 @@ window.__ModuleLoader__.load({
 
     // ------------------------------------------------------------ apply
     function apply(ctx) {
-      const connection = ctx.get("connection");
+      let connection = null;
+      try {
+        connection = ctx.get("connection");
+      } catch (error) {
+        console.warn("[dsh-flowforge] connection unavailable:", error?.message ?? error);
+      }
       const remote = ctx.remote ?? null;
-      const client = createFlowforgeClient(connection.rpc);
+      const client = createFlowforgeClient(
+        connection?.rpc ?? {
+          async call() {
+            throw new Error("宿主未授予 connection 通道（面板功能受限）");
+          },
+        },
+      );
 
       let open = false;
       const setOpen = (v) => {

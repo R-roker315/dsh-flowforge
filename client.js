@@ -318,6 +318,18 @@ window.__ModuleLoader__.load({
         }
         return null;
       };
+      const sendPrompt = async (sid, text) => {
+        // steer（插入进行中的回合）优先，被拒则退回普通入队
+        try {
+          const res = await remote.session.prompt({ sessionId: sid, mode: "steer", content: [{ type: "text", text }] });
+          if (res && res.ok === false) throw new Error(res.error?.message ?? "发送失败");
+          return;
+        } catch (e) {
+          if (!/steer/i.test(String(e?.message ?? e))) throw e;
+        }
+        const res2 = await remote.session.prompt({ sessionId: sid, content: [{ type: "text", text }] });
+        if (res2 && res2.ok === false) throw new Error(res2.error?.message ?? "发送失败");
+      };
       const start = () =>
         guard(async () => {
           if (!currentId) {
@@ -327,12 +339,7 @@ window.__ModuleLoader__.load({
           if (!remote?.session?.prompt) throw new Error("未获得 remote 通道，无法驱动主对话。");
           const sid = await resolveSessionId();
           if (!sid) throw new Error("未定位到会话：请先在主界面打开/新建一个会话，再点执行。");
-          const res = await remote.session.prompt({
-            sessionId: sid,
-            mode: "steer",
-            content: [{ type: "text", text: buildKickoff({ ...buildWorkflow(), id: currentId }) }],
-          });
-          if (res && res.ok === false) throw new Error(res.error?.message ?? "发送失败");
+          await sendPrompt(sid, buildKickoff({ ...buildWorkflow(), id: currentId }));
           client.call("history/record", { text: `▶ 执行工作流：${name || currentId}` }).catch(() => {});
           setTab("run");
           await refreshState();
@@ -343,13 +350,7 @@ window.__ModuleLoader__.load({
           await refreshState();
           if (promptAfter && remote?.session?.prompt) {
             const sid = await resolveSessionId();
-            if (sid) {
-              await remote.session.prompt({
-                sessionId: sid,
-                mode: "steer",
-                content: [{ type: "text", text: promptAfter }],
-              });
-            }
+            if (sid) await sendPrompt(sid, promptAfter);
           }
         });
 

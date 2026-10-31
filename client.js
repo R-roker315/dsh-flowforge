@@ -496,7 +496,20 @@ window.__ModuleLoader__.load({
       } catch (error) {
         console.warn("[dsh-flowforge] connection unavailable:", error?.message ?? error);
       }
-      const remote = ctx.remote ?? null;
+      // remote 门面按需解析（对齐 dsh-pve/alist 兼容模式：ctx.remote 属性不可靠）
+      const resolveRemote = (svc) => {
+        try {
+          return typeof ctx.get === "function" ? ctx.get(svc) : undefined;
+        } catch {
+          return undefined;
+        }
+      };
+      const remoteSession =
+        resolveRemote("remote.session") ??
+        resolveRemote("remote")?.session ??
+        (typeof ctx.remote === "object" ? ctx.remote?.session : undefined) ??
+        null;
+      const remote = remoteSession ? { session: remoteSession } : null;
       const client = createFlowforgeClient(
         connection?.rpc ?? {
           async call() {

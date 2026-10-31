@@ -559,10 +559,61 @@ export function apply(ctx, config = {}) {
 
   ctx.inject(["webServer"], (webCtx) => {
     try {
-      const conn = webCtx.connection ?? webCtx.get?.("connection");
-      conn?.rpc?.handle?.("/dsh-flowforge", rpcHandler, { authority: "trusted-host" });
+      webCtx.effect(() => webCtx.webServer.register({
+        kind: "prefix",
+        path: "/dsh-flowforge",
+        handler: async (req, res) => {
+          if (req.method !== "POST") {
+            res.setHeader("Allow", "POST");
+            res.writeHead(405);
+            res.end();
+            return;
+          }
+          try {
+            const connection = webCtx.get("connection");
+            const rejection = connection?.requestRejection?.(req);
+            if (rejection !== void 0) {
+              res.writeHead(rejection);
+              res.end(rejection === 401 ? "unauthorized" : "forbidden");
+              return;
+            }
+          } catch {
+            /* connection 服务对社区插件可能不可见；鉴权由外层 web 鉴权层兜底 */
+          }
+          const chunks = [];
+          for await (const chunk of req) chunks.push(chunk);
+          let body;
+          try {
+            body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+          } catch {
+            res.writeHead(400);
+            res.end("body is not JSON");
+            return;
+          }
+          const rawPath = new URL(req.url ?? "/", "http://localhost").pathname;
+          const endpoint = rawPath.startsWith("/dsh-flowforge/")
+            ? rawPath.slice("/dsh-flowforge/".length)
+            : "";
+          try {
+            const result = await rpcHandler(endpoint, body?.payload);
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({
+              type: "server-response",
+              rpcId: body?.rpcId,
+              result,
+            }));
+          } catch (error) {
+            res.writeHead(500, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({
+              type: "server-response",
+              rpcId: body?.rpcId,
+              result: { ok: false, error: { code: "internal", message: error instanceof Error ? error.message : String(error) } },
+            }));
+          }
+        },
+      }), "dsh-flowforge: rpc route");
     } catch (error) {
-      console.warn("[dsh-flowforge] rpc.handle failed:", error?.message ?? error);
+      console.warn("[dsh-flowforge] webServer.register failed:", error?.message ?? error);
     }
   });
 }

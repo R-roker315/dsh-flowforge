@@ -14,7 +14,14 @@ const ctx = {
   systemPrompt: { section: (s) => sections.push(s) },
   inject(deps, fn) {
     if (deps[0] === "webServer") {
-      fn({ connection: { rpc: { handle: (route, handler) => rpcRoutes.set(route, handler) } } });
+      fn({
+        effect: (f) => f(),
+        webServer: {
+          register: (def) => {
+            if (def.kind === "prefix") rpcRoutes.set(def.path, def.handler);
+          },
+        },
+      });
     }
   },
 };
@@ -22,12 +29,36 @@ const ctx = {
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "flowforge-test-"));
 apply(ctx, { dataDir });
 
+// 假 HTTP req/res，走真实 handler 的完整包装层
+function makeRes() {
+  const state = { status: 0, body: "", headers: {} };
+  const res = {
+    setHeader: (k, v) => { state.headers[k] = v; },
+    writeHead: (s, h) => { state.status = s; if (h) Object.assign(state.headers, h); },
+    end: (b) => { state.body = b ?? ""; },
+  };
+  return { res, state };
+}
+function makeReq(bodyObj) {
+  const chunks = bodyObj ? [Buffer.from(JSON.stringify(bodyObj))] : [];
+  return {
+    method: "POST",
+    url: "/dsh-flowforge/PLACEHOLDER",
+    async *[Symbol.asyncIterator]() { for (const c of chunks) yield c; },
+  };
+}
 const rpc = async (endpoint, payload) => {
   const handler = rpcRoutes.get("/dsh-flowforge");
   assert.ok(handler, "RPC 路由未注册");
-  const res = await handler(endpoint, payload);
-  assert.equal(res.ok, true);
-  return res.value.status === "ok" ? res.value.data : { __error: res.value.error };
+  const { res, state } = makeRes();
+  const req = makeReq({ rpcId: "t1", payload });
+  req.url = `/dsh-flowforge/${endpoint}`;
+  await handler(req, res);
+  assert.equal(state.status, 200, `HTTP ${state.status}: ${state.body}`);
+  const parsed = JSON.parse(state.body);
+  assert.equal(parsed.type, "server-response");
+  assert.equal(parsed.result.ok, true);
+  return parsed.result.value.status === "ok" ? parsed.result.value.data : { __error: parsed.result.value.error };
 };
 
 // ---- 1. validateWorkflow ----

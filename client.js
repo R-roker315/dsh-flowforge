@@ -31,7 +31,7 @@ window.__ModuleLoader__.load({
 
     // ------------------------------------------------------------ styles
     const CSS = `
-.ff-panel{position:fixed;top:12px;right:12px;width:560px;max-width:calc(100vw - 24px);max-height:calc(100vh - 24px);
+.ff-panel{position:fixed;top:46px;right:12px;width:560px;max-width:calc(100vw - 24px);max-height:calc(100vh - 62px);
   display:flex;flex-direction:column;background:var(--dsw-specific-input-major,#fff);color:var(--dsw-alias-label-primary,#1a1a1a);
   border:1px solid var(--dsw-alias-border-l2-darkmode-thin,rgba(0,0,0,.12));border-radius:12px;
   box-shadow:var(--dsw-shadow-lv3,0 8px 32px rgba(0,0,0,.18));z-index:9999;font:inherit}

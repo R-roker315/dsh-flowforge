@@ -124,7 +124,7 @@ window.__ModuleLoader__.load({
     }
 
     // ------------------------------------------------------------ panel
-    function FlowforgePanel({ client, remote, sessionId, open, onToggle, diagnostics }) {
+    function FlowforgePanel({ client, remote, sessionId, open, onToggle, diagnostics, getRemoteSession }) {
       const [tab, setTab] = react.useState("forge"); // forge | library | run
       const [name, setName] = react.useState("");
       const [steps, setSteps] = react.useState([]);
@@ -319,15 +319,17 @@ window.__ModuleLoader__.load({
         return null;
       };
       const sendPrompt = async (sid, text) => {
+        const session = getRemoteSession?.() ?? remote?.session ?? null;
+        if (!session?.prompt) throw new Error("未获得 remote.session 通道（面板打开后仍不可用）。");
         // steer（插入进行中的回合）优先，被拒则退回普通入队
         try {
-          const res = await remote.session.prompt({ sessionId: sid, mode: "steer", content: [{ type: "text", text }] });
+          const res = await session.prompt({ sessionId: sid, mode: "steer", content: [{ type: "text", text }] });
           if (res && res.ok === false) throw new Error(res.error?.message ?? "发送失败");
           return;
         } catch (e) {
           if (!/steer/i.test(String(e?.message ?? e))) throw e;
         }
-        const res2 = await remote.session.prompt({ sessionId: sid, content: [{ type: "text", text }] });
+        const res2 = await session.prompt({ sessionId: sid, content: [{ type: "text", text }] });
         if (res2 && res2.ok === false) throw new Error(res2.error?.message ?? "发送失败");
       };
       const start = () =>
@@ -336,7 +338,6 @@ window.__ModuleLoader__.load({
             const data = await client.call("workflow/save", { workflow: buildWorkflow() });
             setCurrentId(data.workflow.id);
           }
-          if (!remote?.session?.prompt) throw new Error("未获得 remote 通道，无法驱动主对话。");
           const sid = await resolveSessionId();
           if (!sid) throw new Error("未定位到会话：请先在主界面打开/新建一个会话，再点执行。");
           await sendPrompt(sid, buildKickoff({ ...buildWorkflow(), id: currentId }));
@@ -348,7 +349,7 @@ window.__ModuleLoader__.load({
         guard(async () => {
           await client.call("run/control", { action });
           await refreshState();
-          if (promptAfter && remote?.session?.prompt) {
+          if (promptAfter) {
             const sid = await resolveSessionId();
             if (sid) await sendPrompt(sid, promptAfter);
           }
@@ -540,7 +541,11 @@ window.__ModuleLoader__.load({
         resolveRemote("remote")?.session ??
         (typeof ctx.remote === "object" ? ctx.remote?.session : undefined) ??
         null;
-      const remote = remoteSession ? { session: remoteSession } : null;
+      // 注意：apply 发生在 boot 早期，服务可能尚未装配；调用时必须实时解析
+      const getRemoteSession = () =>
+        resolveRemote("remote.session") ??
+        resolveRemote("remote")?.session ??
+        (remoteSession ?? null);
       // 诊断：一次性探明客户端可用的全部通道形态
       const diagnostics = () => {
         const out = {};
@@ -607,7 +612,7 @@ window.__ModuleLoader__.load({
           children: [
             react_jsx_runtime.jsx(Dock),
             panelOpen && react_jsx_runtime.jsx(FlowforgePanel, {
-              client, remote, sessionId: props.sessionId, open: panelOpen, diagnostics,
+              client, remote, sessionId: props.sessionId, open: panelOpen, diagnostics, getRemoteSession,
               onToggle: () => setOpen(false),
             }),
           ],
@@ -686,7 +691,7 @@ window.__ModuleLoader__.load({
             }
             root.render(
               react_jsx_runtime.jsx(FlowforgePanel, {
-                client, remote, sessionId: null, open: true, diagnostics,
+                client, remote, sessionId: null, open: true, diagnostics, getRemoteSession,
                 onToggle: () => { domOpen = false; renderDomPanel(); },
               }),
             );

@@ -45,7 +45,7 @@
 
 ## 协议说明（开发者）
 
-- client↔host：`connection.rpc.call("/dsh-flowforge", endpoint, payload)` ↔ `webCtx.connection.rpc.handle("/dsh-flowforge", handler, {authority:"trusted-host"})`
+- client↔host：`connection.rpc.call("/dsh-flowforge", endpoint, payload)` ↔ host 侧 `webServer.register({kind:"prefix", path:"/dsh-flowforge"})` HTTP 路由（POST JSON，`requestRejection` 鉴权）
 - 执行触发：客户端 `remote.session.prompt({sessionId, mode:"steer", content:[{type:"text",...}]})`
 - AI 工具：`flowforge_workflow_get / run_start / step_begin / step_finish / run_control / run_state`
 - UI 槽位：`conversation.composer.dock`

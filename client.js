@@ -584,7 +584,7 @@ window.__ModuleLoader__.load({
         }
       }
 
-      // —— DOM 直挂兜底按钮（不依赖 slots；用于验证模块执行与提供入口） ——
+      // —— DOM 直挂兜底按钮（不依赖 slots；点击时用 createRoot 直接挂载面板） ——
       const mountDomButton = () => {
         if (document.getElementById("dsh-flowforge-dom-btn")) return;
         const btn = document.createElement("button");
@@ -597,9 +597,45 @@ window.__ModuleLoader__.load({
           "border:1px solid rgba(120,120,120,.45)", "background:rgba(255,255,255,.85)",
           "color:#333", "cursor:pointer", "box-shadow:0 2px 8px rgba(0,0,0,.15)",
         ].join(";");
-        btn.addEventListener("click", () => setOpen(!open));
+        let domOpen = false;
+        let root = null;
+        let panelHost = null;
+        const renderDomPanel = () => {
+          if (!domOpen) {
+            if (root) root.render(null);
+            return;
+          }
+          if (!panelHost) {
+            panelHost = document.createElement("div");
+            panelHost.id = "dsh-flowforge-dom-panel";
+            document.body.appendChild(panelHost);
+          }
+          try {
+            if (!root) {
+              const rdc = require("react-dom/client");
+              root = rdc.createRoot(panelHost);
+            }
+            root.render(
+              react_jsx_runtime.jsx(FlowforgePanel, {
+                client, remote, sessionId: null, open: true,
+                onToggle: () => { domOpen = false; renderDomPanel(); },
+              }),
+            );
+          } catch (error) {
+            panelHost.innerHTML =
+              '<div style="position:fixed;top:64px;right:14px;width:560px;max-height:70vh;overflow:auto;' +
+              'background:#fff;color:#333;border:1px solid #ccc;border-radius:12px;padding:12px;z-index:2147483000;font-size:13px">' +
+              "<b>dsh-flowforge 面板挂载失败</b><pre style=\"white-space:pre-wrap\">" +
+              String(error?.stack ?? error).replace(/[<>&]/g, (s) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[s])) +
+              "</pre></div>";
+          }
+        };
+        btn.addEventListener("click", () => {
+          domOpen = !domOpen;
+          setOpen(domOpen);
+          renderDomPanel();
+        });
         document.body.appendChild(btn);
-        console.error("[dsh-flowforge] DOM fallback button mounted");
       };
       if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", mountDomButton, { once: true });

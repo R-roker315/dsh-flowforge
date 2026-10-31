@@ -534,17 +534,24 @@ window.__ModuleLoader__.load({
         });
       };
 
-      ctx.slots.inject("conversation.composer.dock", () =>
-        ctx.slots.register(
-          {
-            name: "conversation.composer.dock",
-            id: PLUGIN_ID,
-            order: 30,
-            inject: (sessionId) => ({ sessionId }),
-          },
-          DockWithPanel,
-        ),
-      );
+      const SLOT_NAMES = [
+        "conversation.composer.dock",
+        "conversation.hero.dock",
+        "conversation.input.accessory",
+      ];
+      for (const slotName of SLOT_NAMES) {
+        ctx.slots.inject(slotName, () =>
+          ctx.slots.register(
+            {
+              name: slotName,
+              id: PLUGIN_ID,
+              order: 30,
+              inject: (sessionId) => ({ sessionId }),
+            },
+            DockWithPanel,
+          ),
+        );
+      }
     }
 
     exports.apply = apply;

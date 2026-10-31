@@ -9,7 +9,7 @@ import Schema from "@deepseek-ai/schemastery";
 import { defineTool } from "@deepseek-ai/dsh-tools";
 
 export const name = "flowforge";
-export const inject = ["tools", "systemPrompt"];
+export const inject = ["tools", "systemPrompt", "webServer"];
 
 export const Config = Schema.object({
   dataDir: Schema.string()
@@ -559,7 +559,8 @@ export function apply(ctx, config = {}) {
 
   ctx.inject(["webServer"], (webCtx) => {
     try {
-      webCtx.connection?.rpc?.handle?.("/dsh-flowforge", rpcHandler, { authority: "trusted-host" });
+      const conn = webCtx.connection ?? webCtx.get?.("connection");
+      conn?.rpc?.handle?.("/dsh-flowforge", rpcHandler, { authority: "trusted-host" });
     } catch (error) {
       console.warn("[dsh-flowforge] rpc.handle failed:", error?.message ?? error);
     }

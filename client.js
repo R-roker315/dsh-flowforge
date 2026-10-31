@@ -583,6 +583,30 @@ window.__ModuleLoader__.load({
           console.warn("[dsh-flowforge] slots.inject failed:", slotName, error?.message ?? error);
         }
       }
+
+      // —— DOM 直挂兜底按钮（不依赖 slots；用于验证模块执行与提供入口） ——
+      const mountDomButton = () => {
+        if (document.getElementById("dsh-flowforge-dom-btn")) return;
+        const btn = document.createElement("button");
+        btn.id = "dsh-flowforge-dom-btn";
+        btn.textContent = "⚒ 锻造";
+        btn.title = "流程锻造（DOM 直挂模式）";
+        btn.style.cssText = [
+          "position:fixed", "top:10px", "right:14px", "z-index:2147483000",
+          "padding:4px 12px", "border-radius:999px", "font-size:12px", "font-family:inherit",
+          "border:1px solid rgba(120,120,120,.45)", "background:rgba(255,255,255,.85)",
+          "color:#333", "cursor:pointer", "box-shadow:0 2px 8px rgba(0,0,0,.15)",
+        ].join(";");
+        btn.addEventListener("click", () => setOpen(!open));
+        document.body.appendChild(btn);
+        console.error("[dsh-flowforge] DOM fallback button mounted");
+      };
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", mountDomButton, { once: true });
+      } else {
+        mountDomButton();
+      }
+      console.error("[dsh-flowforge] client apply completed; slots registered for:", SLOT_NAMES.join(", "));
     }
 
     exports.apply = apply;

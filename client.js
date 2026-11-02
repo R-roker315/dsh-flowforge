@@ -618,6 +618,10 @@ window.__ModuleLoader__.load({
         });
       };
 
+      // 面板只由 composer.dock 一个实例渲染：面板是 position:fixed，
+      // 多个槽位实例同时渲染会叠出多层面板
+      const PANEL_SLOT = "conversation.composer.dock";
+
       const DockWithPanel = (props) => {
         const [panelOpen, setPanelOpen] = react.useState(open);
         react.useEffect(() => {
@@ -625,10 +629,11 @@ window.__ModuleLoader__.load({
           window.addEventListener(TOGGLE_EVENT, listener);
           return () => window.removeEventListener(TOGGLE_EVENT, listener);
         }, []);
+        const showPanel = props.slotName === PANEL_SLOT;
         return react_jsx_runtime.jsxs(react.Fragment, {
           children: [
             react_jsx_runtime.jsx(Dock, {}),
-            panelOpen && react_jsx_runtime.jsx(FlowforgePanel, {
+            showPanel && panelOpen && react_jsx_runtime.jsx(FlowforgePanel, {
               client, sessionId: props.sessionId, open: panelOpen, diagnostics, getRemoteSession,
               onToggle: () => setOpen(false),
             }),
@@ -665,10 +670,12 @@ window.__ModuleLoader__.load({
             }
             if (spec && spec.kind === "list") {
               return ctx.slots.register(makeList(slotName), () =>
-                react_jsx_runtime.jsx(DockWithPanel, {}),
+                react_jsx_runtime.jsx(DockWithPanel, { slotName }),
               );
             }
-            return ctx.slots.register(makeKeyed(slotName), DockWithPanel);
+            return ctx.slots.register(makeKeyed(slotName), (keyedProps) =>
+              react_jsx_runtime.jsx(DockWithPanel, { ...keyedProps, slotName }),
+            );
           });
           slotOk += 1;
         } catch (error) {

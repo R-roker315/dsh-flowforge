@@ -1,6 +1,6 @@
 {
   "name": "dsh-flowforge",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "FlowForge for DeepSeek Harness: forge personal DIY workflows step by step in a top-right panel, with suggestions, self-check gating (hard block / soft acknowledge), preset jumps with AI-proposed-jump approval, and step-by-step execution by the main conversation agent with a live progress panel.",
   "type": "module",
   "main": "index.js",
@@ -29,10 +29,10 @@
     "@deepseek-ai/schemastery": "^3.18.2"
   },
   "peerDependencies": {
-    "@deepseek-ai/dsh-tools": ">=0.1.0-rc.1 <0.2.0-0"
+    "@deepseek-ai/dsh-tools": ">=0.1.0-rc.1 <0.2.0-0 || >=0.2.0-rc.1 <0.3.0-0"
   },
   "devDependencies": {
-    "@deepseek-ai/dsh-tools": "0.1.2-rc.1"
+    "@deepseek-ai/dsh-tools": "0.2.0-rc.2"
   },
   "engines": {
     "node": ">=20.11"

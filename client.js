@@ -627,7 +627,7 @@ window.__ModuleLoader__.load({
         }, []);
         return react_jsx_runtime.jsxs(react.Fragment, {
           children: [
-            react_jsx_runtime.jsx(Dock),
+            react_jsx_runtime.jsx(Dock, {}),
             panelOpen && react_jsx_runtime.jsx(FlowforgePanel, {
               client, sessionId: props.sessionId, open: panelOpen, diagnostics, getRemoteSession,
               onToggle: () => setOpen(false),
@@ -653,6 +653,7 @@ window.__ModuleLoader__.load({
         id: PLUGIN_ID,
         order: 30,
       });
+      let slotOk = 0;
       for (const slotName of SLOT_NAMES) {
         try {
           ctx.slots.inject(slotName, () => {
@@ -662,7 +663,6 @@ window.__ModuleLoader__.load({
             } catch (error) {
               console.warn("[dsh-flowforge] spec() threw:", slotName, error?.message ?? error);
             }
-            console.warn("[dsh-flowforge] slot spec:", slotName, JSON.stringify(spec ?? null));
             if (spec && spec.kind === "list") {
               return ctx.slots.register(makeList(slotName), () =>
                 react_jsx_runtime.jsx(DockWithPanel, {}),
@@ -670,12 +670,13 @@ window.__ModuleLoader__.load({
             }
             return ctx.slots.register(makeKeyed(slotName), DockWithPanel);
           });
+          slotOk += 1;
         } catch (error) {
           console.warn("[dsh-flowforge] slots.inject failed:", slotName, error?.message ?? error);
         }
       }
 
-      // —— DOM 直挂兜底按钮（不依赖 slots；点击时用 createRoot 直接挂载面板） ——
+      // —— DOM 直挂兜底按钮：仅在所有槽位注册失败时启用（点击时用 createRoot 直接挂载面板） ——
       const mountDomButton = () => {
         if (document.getElementById("dsh-flowforge-dom-btn")) return;
         const btn = document.createElement("button");
@@ -728,10 +729,12 @@ window.__ModuleLoader__.load({
         });
         document.body.appendChild(btn);
       };
-      if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", mountDomButton, { once: true });
-      } else {
-        mountDomButton();
+      if (slotOk === 0) {
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", mountDomButton, { once: true });
+        } else {
+          mountDomButton();
+        }
       }
       console.error("[dsh-flowforge] client apply completed; slots registered for:", SLOT_NAMES.join(", "));
     }

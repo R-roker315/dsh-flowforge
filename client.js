@@ -35,7 +35,8 @@ window.__ModuleLoader__.load({
   display:flex;flex-direction:column;background:var(--dsw-specific-input-major,#fff);color:var(--dsw-alias-label-primary,#1a1a1a);
   border:1px solid var(--dsw-alias-border-l2-darkmode-thin,rgba(0,0,0,.12));border-radius:12px;
   box-shadow:var(--dsw-shadow-lv3,0 8px 32px rgba(0,0,0,.18));z-index:9999;font:inherit}
-.ff-head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--dsw-alias-border-l2-darkmode-thin,rgba(0,0,0,.08))}
+.ff-head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--dsw-alias-border-l2-darkmode-thin,rgba(0,0,0,.08));cursor:grab;user-select:none}
+.ff-panel.dragging{opacity:.92;cursor:grabbing}
 .ff-head b{flex:1;font-size:14px}
 .ff-body{overflow:auto;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
 .ff-foot{display:flex;flex-wrap:wrap;gap:6px;padding:10px 12px;border-top:1px solid var(--dsw-alias-border-l2-darkmode-thin,rgba(0,0,0,.08))}
@@ -375,10 +376,60 @@ window.__ModuleLoader__.load({
       const jumpTargetOptions = (selfIndex) =>
         steps.map((s, i) => ({ i, label: `${i + 1}. ${s.name || "(未命名)"}` })).filter((o) => o.i !== selfIndex);
 
+      // ---- 拖动（按住标题栏；位置记忆 localStorage:ff-panel-pos） ----
+      const panelRef = react.useRef(null);
+      react.useEffect(() => {
+        const el = panelRef.current;
+        if (!el) return undefined;
+        try {
+          const saved = JSON.parse(localStorage.getItem("ff-panel-pos") || "null");
+          if (saved && typeof saved.left === "number" && typeof saved.top === "number") {
+            el.style.left = Math.max(0, Math.min(saved.left, window.innerWidth - 80)) + "px";
+            el.style.top = Math.max(0, Math.min(saved.top, window.innerHeight - 40)) + "px";
+            el.style.right = "auto";
+          }
+        } catch {}
+        let sx = 0, sy = 0, ox = 0, oy = 0, dragging = false;
+        const head = el.querySelector(".ff-head");
+        const onDown = (e) => {
+          if (e.button !== 0 || e.target.closest("button")) return;
+          dragging = true;
+          const r = el.getBoundingClientRect();
+          sx = e.clientX; sy = e.clientY; ox = r.left; oy = r.top;
+          el.classList.add("dragging");
+          e.preventDefault();
+        };
+        const onMove = (e) => {
+          if (!dragging) return;
+          const r = el.getBoundingClientRect();
+          const left = Math.max(0, Math.min(window.innerWidth - r.width, ox + e.clientX - sx));
+          const top = Math.max(0, Math.min(window.innerHeight - 40, oy + e.clientY - sy));
+          el.style.left = left + "px";
+          el.style.top = top + "px";
+          el.style.right = "auto";
+        };
+        const onUp = () => {
+          if (!dragging) return;
+          dragging = false;
+          el.classList.remove("dragging");
+          const r = el.getBoundingClientRect();
+          try { localStorage.setItem("ff-panel-pos", JSON.stringify({ left: r.left, top: r.top })); } catch {}
+        };
+        head?.addEventListener("mousedown", onDown);
+        window.addEventListener("mousemove", onMove);
+        window.addEventListener("mouseup", onUp);
+        return () => {
+          head?.removeEventListener("mousedown", onDown);
+          window.removeEventListener("mousemove", onMove);
+          window.removeEventListener("mouseup", onUp);
+        };
+      }, []);
+
       // ---- render ----
       return react_jsx_runtime.jsx("div", {
         className: "ff-panel",
         role: "dialog",
+        ref: panelRef,
         children: [
           react_jsx_runtime.jsxs("div", { className: "ff-head", children: [
             react_jsx_runtime.jsx("b", { children: "⚒ 流程锻造 FlowForge" }),
@@ -689,13 +740,50 @@ window.__ModuleLoader__.load({
         const btn = document.createElement("button");
         btn.id = "dsh-flowforge-dom-btn";
         btn.textContent = "⚒ 锻造";
-        btn.title = "流程锻造（DOM 直挂模式）";
+        btn.title = "流程锻造：可拖动，位置自动记忆";
         btn.style.cssText = [
-          "position:fixed", "top:64px", "right:72px", "z-index:2147483000",
+          "position:fixed", "top:76px", "right:16px", "z-index:2147483000",
           "padding:4px 12px", "border-radius:999px", "font-size:12px", "font-family:inherit",
           "border:1px solid rgba(120,120,120,.45)", "background:rgba(255,255,255,.85)",
           "color:#333", "cursor:pointer", "box-shadow:0 2px 8px rgba(0,0,0,.15)",
+          "touch-action:none",
         ].join(";");
+        try {
+          const saved = JSON.parse(localStorage.getItem("ff-btn-pos") || "null");
+          if (saved && typeof saved.left === "number" && typeof saved.top === "number") {
+            btn.style.left = Math.max(0, Math.min(saved.left, window.innerWidth - 60)) + "px";
+            btn.style.top = Math.max(0, Math.min(saved.top, window.innerHeight - 30)) + "px";
+            btn.style.right = "auto";
+          }
+        } catch {}
+        // —— 拖动（超过 4px 判定为拖拽而非点击；位置记忆 localStorage:ff-btn-pos） ——
+        btn.__dragMoved = false;
+        btn.addEventListener("pointerdown", (e) => {
+          if (e.button !== 0) return;
+          btn.__dragMoved = false;
+          const r = btn.getBoundingClientRect();
+          const sx = e.clientX, sy = e.clientY, ol = r.left, ot = r.top;
+          const onMove = (ev) => {
+            const dx = ev.clientX - sx, dy = ev.clientY - sy;
+            if (!btn.__dragMoved && Math.abs(dx) + Math.abs(dy) <= 4) return;
+            btn.__dragMoved = true;
+            const left = Math.max(0, Math.min(window.innerWidth - r.width, ol + dx));
+            const top = Math.max(0, Math.min(window.innerHeight - r.height, ot + dy));
+            btn.style.left = left + "px";
+            btn.style.top = top + "px";
+            btn.style.right = "auto";
+          };
+          const onUp = () => {
+            window.removeEventListener("pointermove", onMove);
+            window.removeEventListener("pointerup", onUp);
+            if (btn.__dragMoved) {
+              const rr = btn.getBoundingClientRect();
+              try { localStorage.setItem("ff-btn-pos", JSON.stringify({ left: rr.left, top: rr.top })); } catch {}
+            }
+          };
+          window.addEventListener("pointermove", onMove);
+          window.addEventListener("pointerup", onUp);
+        });
         let domOpen = false;
         let root = null;
         let panelHost = null;
@@ -730,13 +818,14 @@ window.__ModuleLoader__.load({
           }
         };
         btn.addEventListener("click", () => {
+          if (btn.__dragMoved) { btn.__dragMoved = false; return; }
           domOpen = !domOpen;
           setOpen(domOpen);
-          renderDomPanel();
+          if (slotOk === 0) renderDomPanel();
         });
         document.body.appendChild(btn);
       };
-      if (slotOk === 0) {
+      {
         if (document.readyState === "loading") {
           document.addEventListener("DOMContentLoaded", mountDomButton, { once: true });
         } else {
